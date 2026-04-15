@@ -33,17 +33,22 @@ public class RiderMenu {
             }
 
             switch (menuChoice) {
-                case 1: journeyManager.addJourney();    break;
-                case 2: journeyManager.getJourneys();   break;
-                case 3: journeyManager.filterJourneys(); break;
-                case 4: journeyManager.dailySummary();  break;
-                case 5: journeyManager.removeJourney(); break;
-                case 6: journeyManager.reset();         break;
-                case 7: System.out.print("\nExit............"); break;
-                default: System.out.println("INPUT ERROR: Choose a number from 1 to 7.");
+                case 1 -> journeyManager.addJourney();
+                case 2 -> journeyManager.getJourneys();
+                case 3 -> journeyManager.filterJourneys();
+                case 4 -> journeyManager.dailySummary();
+                case 5 -> journeyManager.removeJourney();
+                case 6 -> journeyManager.reset();
+                case 7 -> {
+                    System.out.println("\nWould you like to save your session? (y/n): ");
+                    // saving session before exiting???????????????
+                    System.out.print("\nExit............");
+                }
+                default -> System.out.println("INPUT ERROR: Choose a number from 1 to 7.");
             }
 
         } while (menuChoice != 7);
-        input.close();
+        // removing input close. because, it is crashing. and closing only when exiting.
+//        input.close();
     }
 }

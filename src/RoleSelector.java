@@ -9,7 +9,10 @@ public class RoleSelector {
     System.out.println("Your daily  travel companion\n");
 
     do {
-        System.out.println("Select your role:");
+        // "--- Rider Menu ---"
+        // "Welcome, Rider or name of the rider. If it exists."
+
+        System.out.println("\nSelect your role:");
         System.out.println("1.Rider");
         System.out.println("2.Admin");
         System.out.println("3.Exit");
