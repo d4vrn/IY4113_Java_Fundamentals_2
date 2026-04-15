@@ -23,6 +23,6 @@
 
 public class CityRideLite {
     public static void main(String[] args) {
-        Menu.start();
+        RoleSelector.selectRole();
     }
 }

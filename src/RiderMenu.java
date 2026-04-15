@@ -1,11 +1,17 @@
 import java.util.Scanner;
 
-public class Menu {
-    public static void start() {
-        Scanner input = new Scanner(System.in);
+public class RiderMenu {
+        private Scanner input;
+        private JourneyManager journeyManager;
+
+        public RiderMenu() {
+            input = new Scanner(System.in);
+            journeyManager = new JourneyManager(input);
+        }
+
+
+    public void run() {
         int menuChoice = 0;
-        System.out.println("\n--- Welcome, CityRide Lite!!! ---");
-        JourneyManager journeyManager = new JourneyManager(input);
 
         do {
             System.out.print("\n");
