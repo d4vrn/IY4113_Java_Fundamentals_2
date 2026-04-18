@@ -88,6 +88,18 @@ public class FileManager {
         }
     }
 
+    public static <T> T readJson(String path, com.google.gson.reflect.TypeToken<T> token) {
+        if (!fileExists(path)) {
+            return null;
+        }
+        try (Reader reader = new FileReader(path)) {
+            return gson.fromJson(reader, token.getType());
+        } catch (IOException e) {
+            System.out.println("FILE ERROR: Could not read " + path + " — " + e.getMessage());
+            return null;
+        }
+    }
+
     public static boolean writeCsv(String path, List<String> rows) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(path, false))) {
             for (String row : rows) {
