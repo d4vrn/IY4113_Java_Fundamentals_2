@@ -39,6 +39,15 @@ public class Journey {
     public BigDecimal getBaseFare() { return baseFare; }
     public BigDecimal getDiscountApplied() { return discountApplied; }
 
+    public BigDecimal getDiscountedFare() {
+        return baseFare.multiply(BigDecimal.ONE.subtract(discountApplied))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public int getZonesCrossed() {
+        return Math.abs(toZone - fromZone) + 1;
+    }
+
     public void displayJourneyDetails() {
         System.out.println(
                 "\nID: " + sessionId +
