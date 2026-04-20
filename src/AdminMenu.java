@@ -6,8 +6,8 @@ public class AdminMenu {
     private final InputValidator reader;
     private final ConfigManager config;
 
-    public AdminMenu(ConfigManager config) {
-        this.input  = new Scanner(System.in);
+    public AdminMenu(Scanner input, ConfigManager config) {
+        this.input  = input;
         this.reader = new InputValidator(input);
         this.config = config;
     }
@@ -28,8 +28,12 @@ public class AdminMenu {
 
             attempts++;
             int remaining = maxAttempts - attempts;
-            String word = remaining == 1 ? "attempt" : "attempts";
-            System.out.println("Incorrect password. " + remaining + " " + word + " remaining.");
+            if (remaining > 0) {
+                String word = remaining == 1 ? "attempt" : "attempts";
+                System.out.println("Incorrect password. " + remaining + " " + word + " remaining.");
+            } else {
+                System.out.println("Incorrect password.");
+            }
         }
 
         if (attempts == maxAttempts) {
@@ -77,12 +81,18 @@ public class AdminMenu {
         int toZone   = reader.getValidZone("Enter to zone (1-5): ");
         CityRideDataset.TimeBand timeBand = reader.getValidTimeBand("Enter time band (PEAK/OFF_PEAK): ");
 
-        System.out.print("Enter new fare (e.g. 3.50): ");
-        try {
-            java.math.BigDecimal fare = new java.math.BigDecimal(input.nextLine().trim());
-            config.updateBaseFare(fromZone, toZone, timeBand, fare);
-        } catch (NumberFormatException e) {
-            System.out.println("INPUT ERROR: Enter a valid number e.g. 3.50");
+        while (true) {
+            System.out.print("Enter new fare (e.g. 3.50): ");
+            String txt = input.nextLine().trim();
+            if (txt.isBlank()) { System.out.println("INPUT ERROR: Enter a valid number e.g. 3.50"); continue; }
+            java.math.BigDecimal fare;
+            try {
+                fare = new java.math.BigDecimal(txt);
+            } catch (NumberFormatException e) {
+                System.out.println("INPUT ERROR: Enter a valid number e.g. 3.50");
+                continue;
+            }
+            if (config.updateBaseFare(fromZone, toZone, timeBand, fare)) break;
         }
     }
 
@@ -91,12 +101,18 @@ public class AdminMenu {
         CityRideDataset.PassengerType type = reader.getValidPassengerType(
                 "Enter passenger type (ADULT/STUDENT/CHILD/SENIOR_CITIZEN): ");
 
-        System.out.print("Enter new discount rate (0.00 to 1.00, e.g. 0.25 for 25%): ");
-        try {
-            java.math.BigDecimal rate = new java.math.BigDecimal(input.nextLine().trim());
-            config.updateDiscountRate(type, rate);
-        } catch (NumberFormatException e) {
-            System.out.println("INPUT ERROR: Enter a valid number e.g. 0.25");
+        while (true) {
+            System.out.print("Enter new discount rate (0.00 to 1.00, e.g. 0.25 for 25%): ");
+            String txt = input.nextLine().trim();
+            if (txt.isBlank()) { System.out.println("INPUT ERROR: Enter a valid number e.g. 0.25"); continue; }
+            java.math.BigDecimal rate;
+            try {
+                rate = new java.math.BigDecimal(txt);
+            } catch (NumberFormatException e) {
+                System.out.println("INPUT ERROR: Enter a valid number e.g. 0.25");
+                continue;
+            }
+            if (config.updateDiscountRate(type, rate)) break;
         }
     }
 
@@ -105,12 +121,18 @@ public class AdminMenu {
         CityRideDataset.PassengerType type = reader.getValidPassengerType(
                 "Enter passenger type (ADULT/STUDENT/CHILD/SENIOR_CITIZEN): ");
 
-        System.out.print("Enter new daily cap (e.g. 8.00): ");
-        try {
-            java.math.BigDecimal cap = new java.math.BigDecimal(input.nextLine().trim());
-            config.updateDailyCap(type, cap);
-        } catch (NumberFormatException e) {
-            System.out.println("INPUT ERROR: Enter a valid number e.g. 8.00");
+        while (true) {
+            System.out.print("Enter new daily cap (e.g. 8.00): ");
+            String txt = input.nextLine().trim();
+            if (txt.isBlank()) { System.out.println("INPUT ERROR: Enter a valid number e.g. 8.00"); continue; }
+            java.math.BigDecimal cap;
+            try {
+                cap = new java.math.BigDecimal(txt);
+            } catch (NumberFormatException e) {
+                System.out.println("INPUT ERROR: Enter a valid number e.g. 8.00");
+                continue;
+            }
+            if (config.updateDailyCap(type, cap)) break;
         }
     }
 
@@ -120,15 +142,13 @@ public class AdminMenu {
         System.out.println("Morning: " + config.getPeakMorningStart() + " - " + config.getPeakMorningEnd());
         System.out.println("Evening: " + config.getPeakEveningStart() + " - " + config.getPeakEveningEnd());
 
-        System.out.print("Enter morning start (HH:mm e.g. 07:00): ");
-        String morningStart = input.nextLine().trim();
-        System.out.print("Enter morning end (HH:mm e.g. 09:30): ");
-        String morningEnd = input.nextLine().trim();
-        System.out.print("Enter evening start (HH:mm e.g. 16:00): ");
-        String eveningStart = input.nextLine().trim();
-        System.out.print("Enter evening end (HH:mm e.g. 19:00): ");
-        String eveningEnd = input.nextLine().trim();
-
-        config.updatePeakWindows(morningStart, morningEnd, eveningStart, eveningEnd);
+        while (true) {
+            String morningStart = reader.getValidTime("Enter morning start (HH:mm e.g. 07:00): ");
+            String morningEnd   = reader.getValidTime("Enter morning end (HH:mm e.g. 09:30): ");
+            String eveningStart = reader.getValidTime("Enter evening start (HH:mm e.g. 16:00): ");
+            String eveningEnd   = reader.getValidTime("Enter evening end (HH:mm e.g. 19:00): ");
+            if (config.updatePeakWindows(morningStart, morningEnd, eveningStart, eveningEnd)) break;
+            System.out.println("Please re-enter all four times.");
+        }
     }
 }
