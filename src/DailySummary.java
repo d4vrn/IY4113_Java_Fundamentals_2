@@ -9,6 +9,7 @@ public class DailySummary {
 
     private final String riderName;
     private final String date;
+    private final ConfigManager config;
 
     private int totalJourneys;
     private BigDecimal totalCharged;
@@ -21,9 +22,10 @@ public class DailySummary {
     private long offPeakCount;
     private Map<String, Integer> zonePairCounts;
 
-    public DailySummary(List<Journey> journeys, String date, String riderName) {
+    public DailySummary(List<Journey> journeys, String date, String riderName, ConfigManager config) {
         this.date       = date;
         this.riderName  = riderName;
+        this.config = config;
         compute(journeys);
     }
 
@@ -57,10 +59,10 @@ public class DailySummary {
                 .max((a, b) -> a.getChargedFare().compareTo(b.getChargedFare()))
                 .orElse(null);
 
-        BigDecimal totalDiscounted = dayJourneys.stream()
-                .map(Journey::getDiscountedFare)
+        BigDecimal totalBase = dayJourneys.stream()
+                .map(Journey::getBaseFare)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        totalSavings = totalDiscounted.subtract(totalCharged)
+        totalSavings = totalBase.subtract(totalCharged)
                 .max(BigDecimal.ZERO)
                 .setScale(2, RoundingMode.HALF_UP);
 
@@ -118,7 +120,7 @@ public class DailySummary {
             TypeTotals t = totalsByType.get(type);
             if (t == null) continue;
 
-            BigDecimal cap        = CityRideDataset.DAILY_CAP.get(type);
+            BigDecimal cap        = config.getDailyCap(type);
             boolean capReached    = t.chargedAfterCapSum.compareTo(cap) >= 0;
 
             sb.append(type)
@@ -143,6 +145,7 @@ public class DailySummary {
         return sb.toString();
     }
 
+    public ConfigManager getConfig()                                       { return config; }
     public String getRiderName()                                          { return riderName; }
     public String getDate()                                               { return date; }
     public int getTotalJourneys()                                         { return totalJourneys; }
