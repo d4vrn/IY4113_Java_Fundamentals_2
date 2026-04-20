@@ -43,6 +43,24 @@ public class FileManager {
         return fileNames;
     }
 
+    public static List<String> listCsvFiles(String directory) {
+        List<String> fileNames = new ArrayList<>();
+        File dir = new File(directory);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return fileNames;
+        }
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                String name = file.getName();
+                if (file.isFile() && name.endsWith(".json") && !name.endsWith("_journeys.json")) {
+                    fileNames.add(name.replace(".json", ""));
+                }
+            }
+        }
+        return fileNames;
+    }
+
     public static boolean deleteFile(String path) {
         File file = new File(path);
         if (!file.exists()) {
@@ -82,6 +100,9 @@ public class FileManager {
         }
         try (Reader reader = new FileReader(path)) {
             return gson.fromJson(reader, clazz);
+        } catch (com.google.gson.JsonSyntaxException e) {
+            System.out.println("FILE ERROR: " + path + " contains invalid JSON — " + e.getMessage());
+            return null;
         } catch (IOException e) {
             System.out.println("FILE ERROR: Could not read " + path + " — " + e.getMessage());
             return null;
@@ -94,6 +115,9 @@ public class FileManager {
         }
         try (Reader reader = new FileReader(path)) {
             return gson.fromJson(reader, token.getType());
+        } catch (com.google.gson.JsonSyntaxException e) {
+            System.out.println("FILE ERROR: " + path + " contains invalid JSON — " + e.getMessage());
+            return null;
         } catch (IOException e) {
             System.out.println("FILE ERROR: Could not read " + path + " — " + e.getMessage());
             return null;
