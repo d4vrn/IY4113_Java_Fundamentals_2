@@ -34,6 +34,12 @@ public class InputValidator {
             if (day < 1 || day > 31)       { System.out.println("INPUT ERROR: Day must be 1-31.");           continue; }
             if (month < 1 || month > 12)   { System.out.println("INPUT ERROR: Month must be 1-12.");         continue; }
             if (year < 2026 || year > 2028){ System.out.println("INPUT ERROR: Year must be 2026-2028.");     continue; }
+            try {
+                java.time.LocalDate.of(year, month, day);
+            } catch (java.time.DateTimeException e) {
+                System.out.println("INPUT ERROR: " + txt + " is not a valid date.");
+                continue;
+            }
             result = String.format("%02d/%02d/%04d", day, month, year);
         }
         return result;

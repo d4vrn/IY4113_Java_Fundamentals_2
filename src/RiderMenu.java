@@ -6,8 +6,8 @@ public class RiderMenu {
     private RiderProfile profile;
     private JourneyManager journeyManager;
 
-    public RiderMenu(ConfigManager config) {
-        this.input  = new Scanner(System.in);
+    public RiderMenu(Scanner input, ConfigManager config) {
+        this.input  = input;
         this.config = config;
     }
 
@@ -34,14 +34,15 @@ public class RiderMenu {
             System.out.println("8. Export Journeys");
             System.out.println("9. Export Summary");
             System.out.println("10. Reset");
-            System.out.println("11. Exit");
+            System.out.println("11. Save Session");
+            System.out.println("12. Exit");
 
             System.out.print("\n> ");
             String choiceText = input.nextLine().trim();
             try {
                 menuChoice = Integer.parseInt(choiceText);
             } catch (NumberFormatException e) {
-                System.out.println("INPUT ERROR: Choose a number from 1 to 11.");
+                System.out.println("INPUT ERROR: Choose a number from 1 to 12.");
                 continue;
             }
 
@@ -57,30 +58,21 @@ public class RiderMenu {
                 case 9  -> journeyManager.exportSummary();
                 case 10 -> journeyManager.reset();
                 case 11 -> {
+                    journeyManager.saveSession();
+                    profile.save();
+                }
+                case 12 -> {
                     boolean save = getConfirmation("\nSave session before exiting? (y/n): ");
                     if (save) {
-                        if (profile.getName().equals("Guest")) {
-                            boolean createProfile = getConfirmation(
-                                    "You need a profile to save. Create one now? (y/n): ");
-                            if (createProfile) {
-                                profile = handleProfileSetup();
-                                journeyManager.updateProfile(profile);
-                                journeyManager.saveSession();
-                                profile.save();
-                            } else {
-                                System.out.println("Session not saved.");
-                            }
-                        } else {
-                            journeyManager.saveSession();
-                            profile.save();
-                        }
+                        journeyManager.saveSession();
+                        profile.save();
                     }
                     System.out.println("\nGoodbye!");
                 }
-                default -> System.out.println("INPUT ERROR: Choose a number from 1 to 11.");
+                default -> System.out.println("INPUT ERROR: Choose a number from 1 to 12.");
             }
 
-        } while (menuChoice != 11);
+        } while (menuChoice != 12);
     }
 
     private RiderProfile handleProfileSetup() {
@@ -104,8 +96,12 @@ public class RiderMenu {
         }
 
         System.out.println("\nCreating new profile...");
-        System.out.print("Enter your name: ");
-        String name = input.nextLine().trim();
+        String name = "";
+        while (name.isBlank()) {
+            System.out.print("Enter your name: ");
+            name = input.nextLine().trim();
+            if (name.isBlank()) System.out.println("INPUT ERROR: Name is required.");
+        }
 
         CityRideDataset.PassengerType passengerType = null;
         while (passengerType == null) {
@@ -135,8 +131,12 @@ public class RiderMenu {
     }
 
     private boolean getConfirmation(String prompt) {
-        System.out.print(prompt);
-        String response = input.nextLine().trim().toLowerCase();
-        return response.equals("y") || response.equals("yes");
+        while (true) {
+            System.out.print(prompt);
+            String response = input.nextLine().trim().toLowerCase();
+            if (response.equals("y") || response.equals("yes")) return true;
+            if (response.equals("n") || response.equals("no"))  return false;
+            System.out.println("INPUT ERROR: Please enter 'y' or 'n'.");
+        }
     }
 }

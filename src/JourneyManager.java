@@ -39,27 +39,14 @@ public class JourneyManager {
         CityRideDataset.PassengerType passengerType = reader.getValidPassengerType(
                 "\nEnter Passenger Type (ADULT/STUDENT/CHILD/SENIOR_CITIZEN): ");
 
-        BigDecimal baseFare       = config.getBaseFare(fromZone, toZone, timeBand);
-        BigDecimal discount       = config.getDiscountRate(passengerType);
-        BigDecimal discountedFare = BigDecimal.ONE.subtract(discount)
-                .multiply(baseFare)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal dailyCap       = config.getDailyCap(passengerType);
-        BigDecimal totalPaidToday = journeys.stream()
-                .filter(j -> j.getDate().equals(date) && j.getPassengerType() == passengerType)
-                .map(Journey::getChargedFare)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal remaining = dailyCap.subtract(totalPaidToday);
-        BigDecimal chargedFare;
-        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            chargedFare = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        } else if (discountedFare.compareTo(remaining) > 0) {
-            chargedFare = remaining.setScale(2, RoundingMode.HALF_UP);
-        } else {
-            chargedFare = discountedFare;
+        BigDecimal baseFare = config.getBaseFare(fromZone, toZone, timeBand);
+        if (baseFare == null) {
+            System.out.println("ERROR: No fare found for zone " + fromZone + " → " + toZone + " (" + timeBand + "). Journey not added.");
+            return;
         }
+
+        BigDecimal discount    = config.getDiscountRate(passengerType);
+        BigDecimal chargedFare = calculateChargedFare(date, passengerType, baseFare, discount, -1);
 
         journeyId++;
         journeys.add(new Journey(journeyId, date, time, fromZone, toZone,
@@ -118,29 +105,14 @@ public class JourneyManager {
         CityRideDataset.PassengerType passengerType = reader.getValidPassengerType(
                 "\nEnter Passenger Type (ADULT/STUDENT/CHILD/SENIOR_CITIZEN): ");
 
-        BigDecimal baseFare       = config.getBaseFare(fromZone, toZone, timeBand);
-        BigDecimal discount       = config.getDiscountRate(passengerType);
-        BigDecimal discountedFare = BigDecimal.ONE.subtract(discount)
-                .multiply(baseFare)
-                .setScale(2, RoundingMode.HALF_UP);
-
-        BigDecimal dailyCap       = config.getDailyCap(passengerType);
-        BigDecimal totalPaidToday = journeys.stream()
-                .filter(j -> j.getDate().equals(date)
-                        && j.getPassengerType() == passengerType
-                        && j.getId() != id)
-                .map(Journey::getChargedFare)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal remaining = dailyCap.subtract(totalPaidToday);
-        BigDecimal chargedFare;
-        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            chargedFare = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        } else if (discountedFare.compareTo(remaining) > 0) {
-            chargedFare = remaining.setScale(2, RoundingMode.HALF_UP);
-        } else {
-            chargedFare = discountedFare;
+        BigDecimal baseFare = config.getBaseFare(fromZone, toZone, timeBand);
+        if (baseFare == null) {
+            System.out.println("ERROR: No fare found for zone " + fromZone + " → " + toZone + " (" + timeBand + "). Journey not updated.");
+            return;
         }
+
+        BigDecimal discount    = config.getDiscountRate(passengerType);
+        BigDecimal chargedFare = calculateChargedFare(date, passengerType, baseFare, discount, id);
 
         journeys.set(index, new Journey(id, date, time, fromZone, toZone,
                 timeBand, passengerType, baseFare, chargedFare, discount));
@@ -162,13 +134,36 @@ public class JourneyManager {
             return;
         }
         String date = reader.getValidDate("\nEnter date for summary export (DD/MM/YYYY): ");
-        DailySummary summary = new DailySummary(journeys, date, profile.getName());
+        DailySummary summary = new DailySummary(journeys, date, profile.getName(), config);
         ReportExporter.exportSummaryTxt(summary);
         ReportExporter.exportSummaryCsv(summary, journeys);
     }
 
     public void importJourneys() {
-        List<String> rows = ReportExporter.importJourneysCsv();
+        List<String> csvFiles = FileManager.listCsvFiles(FileManager.IMPORTS_DIR);
+        if (csvFiles.isEmpty()) {
+            System.out.println("IMPORT: No CSV files found in " + FileManager.IMPORTS_DIR +
+                    ". Place your CSV file there and try again.");
+            return;
+        }
+
+        System.out.println("\nAvailable files in " + FileManager.IMPORTS_DIR + ":");
+        for (int i = 0; i < csvFiles.size(); i++) {
+            System.out.println((i + 1) + ". " + csvFiles.get(i));
+        }
+
+        Integer choice = null;
+        while (choice == null) {
+            System.out.print("\nSelect a file (1-" + csvFiles.size() + "): ");
+            choice = reader.getMenuChoice();
+            if (choice == null || choice < 1 || choice > csvFiles.size()) {
+                System.out.println("INPUT ERROR: Choose a number from 1 to " + csvFiles.size() + ".");
+                choice = null;
+            }
+        }
+
+        String selectedPath = FileManager.IMPORTS_DIR + csvFiles.get(choice - 1);
+        List<String> rows = ReportExporter.importJourneysCsv(selectedPath);
         if (rows.isEmpty()) return;
 
         int imported = 0;
@@ -187,6 +182,13 @@ public class JourneyManager {
                 int fromZone    = Integer.parseInt(parts[1].trim());
                 int toZone      = Integer.parseInt(parts[2].trim());
                 String time     = parts[3].trim();
+
+                if (fromZone < CityRideDataset.MIN_ZONE || fromZone > CityRideDataset.MAX_ZONE ||
+                        toZone < CityRideDataset.MIN_ZONE || toZone > CityRideDataset.MAX_ZONE) {
+                    System.out.println("IMPORT SKIP: Zone out of range (1-5) — " + row);
+                    skipped++;
+                    continue;
+                }
                 CityRideDataset.PassengerType passengerType =
                         CityRideDataset.PassengerType.valueOf(parts[4].trim().toUpperCase());
 
@@ -195,27 +197,15 @@ public class JourneyManager {
                         ? CityRideDataset.TimeBand.PEAK
                         : CityRideDataset.TimeBand.OFF_PEAK;
 
-                BigDecimal baseFare       = config.getBaseFare(fromZone, toZone, timeBand);
-                BigDecimal discount       = config.getDiscountRate(passengerType);
-                BigDecimal discountedFare = BigDecimal.ONE.subtract(discount)
-                        .multiply(baseFare)
-                        .setScale(2, RoundingMode.HALF_UP);
-
-                BigDecimal dailyCap       = config.getDailyCap(passengerType);
-                BigDecimal totalPaidToday = journeys.stream()
-                        .filter(j -> j.getDate().equals(date) && j.getPassengerType() == passengerType)
-                        .map(Journey::getChargedFare)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal remaining = dailyCap.subtract(totalPaidToday);
-                BigDecimal chargedFare;
-                if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-                    chargedFare = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-                } else if (discountedFare.compareTo(remaining) > 0) {
-                    chargedFare = remaining.setScale(2, RoundingMode.HALF_UP);
-                } else {
-                    chargedFare = discountedFare;
+                BigDecimal baseFare = config.getBaseFare(fromZone, toZone, timeBand);
+                if (baseFare == null) {
+                    System.out.println("IMPORT SKIP: No fare found for zone " + fromZone + " → " + toZone + " (" + timeBand + ") — " + row);
+                    skipped++;
+                    continue;
                 }
+
+                BigDecimal discount    = config.getDiscountRate(passengerType);
+                BigDecimal chargedFare = calculateChargedFare(date, passengerType, baseFare, discount, -1);
 
                 journeyId++;
                 journeys.add(new Journey(journeyId, date, time, fromZone, toZone,
@@ -252,6 +242,8 @@ public class JourneyManager {
                 new com.google.gson.reflect.TypeToken<List<Journey>>(){};
         List<Journey> loaded = FileManager.readJson(path, token);
         if (loaded != null) {
+            journeys.clear();
+            journeyId = 0;
             journeys.addAll(loaded);
             journeyId = journeys.stream().mapToInt(Journey::getId).max().orElse(0);
             System.out.println("Session loaded. " + loaded.size() + " journeys restored.");
@@ -262,11 +254,36 @@ public class JourneyManager {
         return journeys;
     }
 
+    private BigDecimal calculateChargedFare(String date, CityRideDataset.PassengerType passengerType,
+                                            BigDecimal baseFare, BigDecimal discountRate, int excludeId) {
+        BigDecimal discountedFare = BigDecimal.ONE.subtract(discountRate)
+                .multiply(baseFare)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal dailyCap = config.getDailyCap(passengerType);
+        BigDecimal totalPaidToday = journeys.stream()
+                .filter(j -> j.getDate().equals(date)
+                        && j.getPassengerType() == passengerType
+                        && j.getId() != excludeId)
+                .map(Journey::getChargedFare)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal remaining = dailyCap.subtract(totalPaidToday);
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        } else if (discountedFare.compareTo(remaining) > 0) {
+            return remaining.setScale(2, RoundingMode.HALF_UP);
+        } else {
+            return discountedFare;
+        }
+    }
+
     private LocalDateTime parseDateTime(String date, String time) {
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
             return LocalDateTime.parse(date + " " + time, formatter);
         } catch (Exception e) {
+            System.out.println("WARNING: Could not parse date/time '" + date + " " + time + "' — using current time for time band.");
             return LocalDateTime.now();
         }
     }
@@ -277,40 +294,35 @@ public class JourneyManager {
             return;
         }
 
-        boolean done = false;
+        int id = reader.getValidInt("\nEnter Journey ID you want to remove\n> ");
 
-        while (!done) {
-            int id = reader.getValidInt("\nEnter Journey ID you want to remove\n> ");
+        if (id <= 0) {
+            System.out.println("INPUT ERROR: Please enter a positive whole number.");
+            return;
+        }
 
-            if (id <= 0) {
-                System.out.println("INPUT ERROR: Please enter a positive whole number.");
-                continue;
+        int removeIndex = -1;
+        for (int i = 0; i < journeys.size(); i++) {
+            if (journeys.get(i).getId() == id) {
+                removeIndex = i;
+                break;
             }
+        }
 
-            int removeIndex = -1;
-            for (int i = 0; i < journeys.size(); i++) {
-                if (journeys.get(i).getId() == id) {
-                    removeIndex = i;
-                    break;
-                }
-            }
+        if (removeIndex == -1) {
+            System.out.println("INPUT ERROR: No journey found with ID: " + id);
+            return;
+        }
 
-            if (removeIndex == -1) {
-                System.out.println("INPUT ERROR: No journey found with ID: " + id);
-                continue;
-            }
+        System.out.println("\nJourney found:");
+        journeys.get(removeIndex).displayJourneyDetails();
 
-            System.out.println("\nJourney found:");
-            journeys.get(removeIndex).displayJourneyDetails();
-
-            boolean confirmed = reader.getConfirmation("\nAre you sure you want to delete this journey? (y/n): ");
-            if (confirmed) {
-                journeys.remove(removeIndex);
-                System.out.println("Journey deleted successfully.");
-            } else {
-                System.out.println("Delete cancelled.");
-            }
-            done = true;
+        boolean confirmed = reader.getConfirmation("\nAre you sure you want to delete this journey? (y/n): ");
+        if (confirmed) {
+            journeys.remove(removeIndex);
+            System.out.println("Journey deleted successfully.");
+        } else {
+            System.out.println("Delete cancelled.");
         }
     }
 
@@ -440,7 +452,7 @@ public class JourneyManager {
             return;
         }
         String date = reader.getValidDate("\nEnter date for Daily Summary (DD/MM/YYYY): ");
-        DailySummary summary = new DailySummary(journeys, date, profile.getName());
+        DailySummary summary = new DailySummary(journeys, date, profile.getName(), config);
         summary.print();
     }
 }

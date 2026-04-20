@@ -27,8 +27,8 @@ public class RoleSelector {
             }
 
             switch (menuChoice) {
-                case 1 -> new RiderMenu(config).run();
-                case 2 -> new AdminMenu(config).run();
+                case 1 -> new RiderMenu(input, config).run();
+                case 2 -> new AdminMenu(input, config).run();
                 case 3 -> System.out.println("\nGoodbye!");
                 default -> System.out.println("INPUT ERROR: Choose a number from 1 to 3.");
             }
