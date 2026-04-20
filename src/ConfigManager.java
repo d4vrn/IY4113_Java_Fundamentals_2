@@ -34,11 +34,13 @@ public class ConfigManager {
                 System.out.println("CONFIG: Loaded from " + FileManager.CONFIG_FILE);
                 return config;
             }
+            System.out.println("CONFIG: config.json is corrupt or unreadable — loading defaults.");
+        } else {
+            System.out.println("CONFIG: No config file found — loading defaults from CityRideDataset.");
         }
 
-        System.out.println("CONFIG: No config file found — loading defaults from CityRideDataset.");
         ConfigManager config = buildFromDefaults();
-        config.save(); // save defaults so config.json exists for next run
+        config.save();
         return config;
     }
 
