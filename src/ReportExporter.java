@@ -15,7 +15,9 @@ public class ReportExporter {
         List<String> rows = new ArrayList<>();
         rows.add(JOURNEY_CSV_HEADER);
         for (Journey j : journeys) {
-            rows.add(journeyToCsvRow(j));
+            if (j.getDate().equals(date)) {
+                rows.add(journeyToCsvRow(j));
+            }
         }
         boolean saved = FileManager.writeCsv(path, rows);
         if (saved) {
@@ -56,7 +58,7 @@ public class ReportExporter {
         for (CityRideDataset.PassengerType type : CityRideDataset.PassengerType.values()) {
             DailySummary.TypeTotals t = summary.getTotalsByType().get(type);
             if (t == null) continue;
-            BigDecimal cap     = CityRideDataset.DAILY_CAP.get(type);
+            BigDecimal cap     = summary.getConfig().getDailyCap(type);
             boolean capReached = t.chargedAfterCapSum.compareTo(cap) >= 0;
             rows.add(type.name() + "," +
                     t.count + "," +
@@ -92,8 +94,8 @@ public class ReportExporter {
         return saved;
     }
 
-    public static List<String> importJourneysCsv() {
-        String path = FileManager.IMPORTS_DIR + "journeys.csv";
+    public static List<String> importJourneysCsv(String path) {
+//        String path = FileManager.IMPORTS_DIR + "journeys.csv";
         List<String> allRows = FileManager.readCsv(path);
         if (allRows.isEmpty()) {
             System.out.println("IMPORT: No file found at " + path +
